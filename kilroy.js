@@ -1,48 +1,101 @@
 /*
-	this bot is a ping pong bot, and every time a message
-	beginning with "ping" is sent, it will reply with
-	"pong!".
+	kilroy.js
+	Discord bot to handle administrative tasks for OldiesGaming
 */
 
-var Discord = require("/home/aboyd/node_modules/discord.js");
+// Gotta use this instead of XMLHttpRequest
+var Hyper = require('http');
 
-// Get the email and password
-var AuthDetails = require("./auth.json");
+// Pull our conf and auth data
+var Conf = require("./conf.json");
+var Auth = require("./auth.json");
 
-var bot = new Discord.Client();
+// Map handling tools
+var Splatmap = require("./splatmap.js");
 
-//when the bot is ready
-bot.on("ready", function () {
-	console.log("Ready to begin! Serving in " + bot.channels.length + " channels");
+var Discord = require(Conf.discord_library);
+var Kilroy = new Discord.Client();
+
+// Set up behavior
+
+// Behavior for when the bot is ready
+Kilroy.on("ready", function() {
+	console.log("Reporting for duty! Currently overseeing " + Kilroy.channels.length + " channels");
 });
 
-//when the bot disconnects
-bot.on("disconnected", function () {
-	//alert the console
+// Behavior for when the bot disconnects
+Kilroy.on("disconnected", function() {
 	console.log("Disconnected!");
-
-	//exit node.js with an error
 	process.exit(1);
 });
 
-//when the bot receives a message
-bot.on("message", function (msg) {
-	//if message begins with "ping"
-	if (msg.content.indexOf("ping") === 0) {
-		//send a message to the channel the ping message was sent in.
-		bot.sendMessage(msg.channel, "pong!");
+// Behavior for recieving messages
+Kilroy.on("message", function(msg) {
+	var x = 0;
+	if (msg.author.username == "Nemo 🐙🚗👠") {
+		/*
+		if (msg.content == "(╯°□°）╯︵ ┻━┻") {
+			Kilroy.sendMessage(msg.channel, "┬─┬﻿ ノ( ゜-゜ノ)");
+			console.log("unflipped " + msg.author.username);
+		} else if (msg.content == "domo arigato") {
+			Kilroy.sendMessage(msg.channel, "😉");
+			console.log("winked at " + msg.author.username);
+		} else if (msg.content == "log client users") {
+			Kilroy.sendMessage(msg.channel, "Logged client.users username data.");
+			for (x = 0; x < Kilroy.users.length; x++) {
+				console.log("client.users: " + Kilroy.users[x].username);
+			}
+		} */
 
-		//alert the console
-		console.log("pong-ed " + msg.author.username);
+		if (msg.content == '!maps') {
+			var hReq;
+			var hResp = {
+				"statusCode": "",
+				"data": null,
+			};
+			var mCycle =  new Splatmap();
+			
+			hReq = Hyper.get('http://splatoon.ink/schedule.json', (resp) => {
+				console.log("Status Code: " + resp.statusCode);
+				hResp.statusCode = resp.statusCode;
+
+				resp.on('data', (rData) => {
+					//console.log("Data : " + rData);					
+					//hResp.data += rData;
+					
+					mCycle.parseRotation(rData);
+					mCycle.genText();
+					//Splatmap.parseRotation(rData);
+					//Splatmap.genText();
+					Kilroy.sendMessage(msg.channel, mCycle.text);
+				});
+
+				resp.on('end', (myResp) => {
+					console.log("Status Code: " + hResp.statusCode);
+					if (hResp.statusCode == 200) {
+						console.log('Success - splatoon.ink API returned status 200.');
+						Kilroy.sendMessage(msg.channel, "Success! Retrieved map data from splatoon.ink.");
+					}
+				});
+			});
+		}
+
+		if (msg.content == '!users') {
+			var userlist = "";
+			for (x = 0; x < Kilroy.users.length; x++) {
+				userlist += Kilroy.users[x].username;
+				if (x + 1 !== Kilroy.users.length) {
+					userlist += ", ";
+				}
+			}
+			Kilroy.sendMessage(msg.channel,
+				"Nemo, here are the current users logged into OldiesGaming: " + userlist);
+			console.log("Showed current users");
+		} else if (msg.isMentioned(Kilroy.users[0])) {
+			Kilroy.sendMessage(msg.channel, msg.author.username + " new phone who dis");
+			console.log("tag for " + Kilroy.users[0].username + " from " + msg.author.username);
+		}
 	}
-    else if (msg.content == "(╯°□°）╯︵ ┻━┻") {
-        //unflip the table
-        bot.sendMessage(msg.channel, "┬─┬﻿ ノ( ゜-゜ノ)");
-
-        //log it
-        console.log("unflipped " + msg.author.username);
-    }
 });
-
-bot.login(AuthDetails.email, AuthDetails.password);
-
+// Login at the end
+Kilroy.login(Auth.email, Auth.password);
