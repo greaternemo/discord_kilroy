@@ -16,7 +16,49 @@ var Splatmap = require("./splatmap.js");
 var Discord = require(Conf.discord_library);
 var Kilroy = new Discord.Client();
 
+// We'll flip this once we're reporting maps to be sure we don't do it more than once.
+var reportingMaps = false;
+var mapChannel = null;
+var mapTimeout = null;
+var mapCycle = new Splatmap();
+
 // Set up behavior
+function getMaps() {
+
+	var hReq = null;
+	var hStat = "";
+	var body = "";
+
+	//clearTimeout(mapTimeout);
+
+	hReq = Hyper.get('http://splatoon.ink/schedule.json', (resp) => {
+		console.log("Status Code: " + resp.statusCode);
+		hStat = resp.statusCode;
+
+		resp.on('data', (rData) => {
+			body += rData;
+		});
+
+		resp.on('end', (myResp) => {
+			console.log("Status Code: " + hStat);
+			if (hStat == 200) {
+				console.log('Success - splatoon.ink API returned status 200.');
+				Kilroy.sendMessage(mapChannel, "Success! Retrieved map data from splatoon.ink.");
+				mapCycle.parseRotation(body);
+				Kilroy.sendMessage(mapChannel, mapCycle.text);
+				var tilNext = ((mapCycle.currMaps.raw.end - Date.now()) + 90000);
+				if (tilNext > 0) {
+					console.log(mapCycle.currMaps.raw.end);
+					console.log(tilNext);
+					mapTimeout = setTimeout(getMaps, tilNext);
+				} else {
+					console.log(tilNext);
+					console.log("Time until next rotation is negative, bailing out.");
+				}
+			}
+		});
+	});
+}
 
 // Behavior for when the bot is ready
 Kilroy.on("ready", function() {
@@ -32,70 +74,36 @@ Kilroy.on("disconnected", function() {
 // Behavior for recieving messages
 Kilroy.on("message", function(msg) {
 	var x = 0;
-	if (msg.author.username == "Nemo 🐙🚗👠") {
-		/*
-		if (msg.content == "(╯°□°）╯︵ ┻━┻") {
-			Kilroy.sendMessage(msg.channel, "┬─┬﻿ ノ( ゜-゜ノ)");
-			console.log("unflipped " + msg.author.username);
-		} else if (msg.content == "domo arigato") {
-			Kilroy.sendMessage(msg.channel, "😉");
-			console.log("winked at " + msg.author.username);
-		} else if (msg.content == "log client users") {
-			Kilroy.sendMessage(msg.channel, "Logged client.users username data.");
-			for (x = 0; x < Kilroy.users.length; x++) {
-				console.log("client.users: " + Kilroy.users[x].username);
-			}
-		} */
+	if (msg.author.id == 81042610457677824) {
 
 		if (msg.content == '!maps') {
-			var hReq;
-			var hResp = {
-				"statusCode": "",
-				"data": null,
-			};
-			var mCycle =  new Splatmap();
-			
-			hReq = Hyper.get('http://splatoon.ink/schedule.json', (resp) => {
-				console.log("Status Code: " + resp.statusCode);
-				hResp.statusCode = resp.statusCode;
-
-				resp.on('data', (rData) => {
-					//console.log("Data : " + rData);					
-					//hResp.data += rData;
-					
-					mCycle.parseRotation(rData);
-					mCycle.genText();
-					//Splatmap.parseRotation(rData);
-					//Splatmap.genText();
-					Kilroy.sendMessage(msg.channel, mCycle.text);
-				});
-
-				resp.on('end', (myResp) => {
-					console.log("Status Code: " + hResp.statusCode);
-					if (hResp.statusCode == 200) {
-						console.log('Success - splatoon.ink API returned status 200.');
-						Kilroy.sendMessage(msg.channel, "Success! Retrieved map data from splatoon.ink.");
-					}
-				});
-			});
+			if (reportingMaps == 'spam') {
+				console.log("Ignoring spammy duplicate maps request");
+			} else if (reportingMaps === 'yes') {
+				console.log("Ignoring duplicate maps request");
+				Kilroy.sendMessage(msg.channel, "I'm already reporting the map rotation! Don't spam requests. D:");
+				reportingMaps = 'spam';
+			} else if (reportingMaps === false) {
+				reportingMaps = 'yes';
+				mapChannel = msg.channel;
+				getMaps();
+			}
 		}
 
 		if (msg.content == '!users') {
 			var userlist = "";
 			for (x = 0; x < Kilroy.users.length; x++) {
-				userlist += Kilroy.users[x].username;
-				if (x + 1 !== Kilroy.users.length) {
-					userlist += ", ";
-				}
+				userlist += Kilroy.users[x].username + " " + Kilroy.users[x].id + "\n";
 			}
 			Kilroy.sendMessage(msg.channel,
-				"Nemo, here are the current users logged into OldiesGaming: " + userlist);
+				"Nemo, here are the current users logged into OldiesGaming:\n" + userlist);
 			console.log("Showed current users");
 		} else if (msg.isMentioned(Kilroy.users[0])) {
-			Kilroy.sendMessage(msg.channel, msg.author.username + " new phone who dis");
+			Kilroy.sendMessage(msg.channel, "new phone who dis");
 			console.log("tag for " + Kilroy.users[0].username + " from " + msg.author.username);
 		}
 	}
 });
+
 // Login at the end
 Kilroy.login(Auth.email, Auth.password);

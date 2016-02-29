@@ -5,6 +5,7 @@
 
 var Splatmap = function() {
     this.time;
+    this.update;
     this.currMaps;
     this.nextMaps;
     this.lastMaps;
@@ -13,8 +14,12 @@ var Splatmap = function() {
 };
 
 function sMap() {
-    this.start;
-    this.end;
+    this.raw = {
+        start: null,
+        end: null,
+    };
+    this.start = null;
+    this.end = null;
     this.regular = {
         rules: "",
         maps: [],
@@ -51,10 +56,15 @@ Splatmap.prototype.parseRotation = function(rData) {
     var timeMap = ["currMaps", "nextMaps", "lastMaps"];
     var tVar = "";
     var cnt = 0;
+    
+    this.update = mapData.updateTime;
 
     for (cnt = 0; cnt < mapData.schedule.length; cnt++) {
         tVar = timeMap[cnt];
-
+        
+        this[tVar].raw.start = mapData.schedule[cnt].startTime;
+        this[tVar].raw.end = mapData.schedule[cnt].endTime;
+        
         this[tVar].start = new Date(mapData.schedule[cnt].startTime);
         this[tVar].end = new Date(mapData.schedule[cnt].endTime);
 
@@ -66,13 +76,14 @@ Splatmap.prototype.parseRotation = function(rData) {
         this[tVar].ranked.maps.push(mapData.schedule[cnt].ranked.maps[0].name.en);
         this[tVar].ranked.maps.push(mapData.schedule[cnt].ranked.maps[1].name.en);
     }
+    
+    this.genText();
 };
 
 Splatmap.prototype.genText = function() {
 
     function formTimes(aMap) {
         var timeText = "";
-        //timeText += aMap.start.getUTCHours() + aMap.start.getUTCMinutes();
         timeText += aMap.start.toLocaleTimeString('en-GB', {
             timeZone: "UTC",
             hour12: false,
@@ -80,22 +91,36 @@ Splatmap.prototype.genText = function() {
             minute: "2-digit",
         });
         timeText += " - ";
-        //timeText += aMap.end.getUTCHours() + aMap.end.getUTCMinutes();
         timeText += aMap.end.toLocaleTimeString('en-GB', {
             timeZone: "UTC",
             hour12: false,
             hour: "2-digit",
             minute: "2-digit",
         });
+        timeText += " UTC / ";
+        timeText += aMap.start.toLocaleTimeString('en-US', {
+            timeZone: "America/New_York",
+            hour: "2-digit",
+            minute: "2-digit",
+        });
+        timeText += " - ";
+        timeText += aMap.end.toLocaleTimeString('en-US', {
+            timeZone: "America/New_York",
+            hour: "2-digit",
+            minute: "2-digit",
+        });
+        timeText += " EST";
         return timeText;
     }
 
-    this.text = "Current Rotation: " + formTimes(this.currMaps) + " UTC\n" +
+    this.text = "Current Rotation: " + "\n" +
+        formTimes(this.currMaps) + "\n" +
         "**Regular**: **" + this.curr('regular').rules + "** on **" +
         this.curr('regular').maps[0] + "** & **" + this.curr('regular').maps[1] + "**\n" +
         "**Ranked**: **" + this.curr('ranked').rules + "** on **" +
         this.curr('ranked').maps[0] + "** & **" + this.curr('ranked').maps[1] + "**\n" +
-        "\n" + "Next Rotation: " + formTimes(this.nextMaps) + " UTC\n" +
+        "\n" + "Next Rotation: " + "\n" +
+        formTimes(this.nextMaps) + "\n" +
         "**Regular**: **" + this.next('regular').rules + "** on **" +
         this.next('regular').maps[0] + "** & **" + this.next('regular').maps[1] + "**\n" +
         "**Ranked**: **" + this.next('ranked').rules + "** on **" +
