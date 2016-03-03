@@ -27,7 +27,7 @@ function getMaps() {
 
 	var hReq = null;
 	var hStat = "";
-	var body = "";
+	var mapData = "";
 
 	//clearTimeout(mapTimeout);
 
@@ -36,7 +36,8 @@ function getMaps() {
 		hStat = resp.statusCode;
 
 		resp.on('data', (rData) => {
-			body += rData;
+			mapData = "";
+			mapData += rData;
 		});
 
 		resp.on('end', (myResp) => {
@@ -44,9 +45,26 @@ function getMaps() {
 			if (hStat == 200) {
 				console.log('Success - splatoon.ink API returned status 200.');
 				Kilroy.sendMessage(mapChannel, "Success! Retrieved map data from splatoon.ink.");
-				mapCycle.parseRotation(body);
+				var tilNext;
+
+				if (reportingMaps === false) {
+					mapCycle.parseRotation({
+						body: mapData,
+						time: 'curr',
+					});
+					reportingMaps = 'yes';
+					tilNext = (mapCycle.currMaps.raw.end - Date.now());
+					Kilroy.sendMessage(mapChannel, "Ready to report maps at next rotation!")
+				} else if (reportingMaps == 'yes') {
+					mapCycle.parseRotation({
+						body: mapData,
+						time: 'next',
+					});
+					tilNext = (mapCycle.nextMaps.raw.end - Date.now());
+				}
+
 				Kilroy.sendMessage(mapChannel, mapCycle.text);
-				var tilNext = ((mapCycle.currMaps.raw.end - Date.now()) + 90000);
+
 				if (tilNext > 0) {
 					console.log(mapCycle.currMaps.raw.end);
 					console.log(tilNext);
@@ -54,6 +72,7 @@ function getMaps() {
 				} else {
 					console.log(tilNext);
 					console.log("Time until next rotation is negative, bailing out.");
+					reportingMaps = false;
 				}
 			}
 		});
@@ -84,7 +103,6 @@ Kilroy.on("message", function(msg) {
 				Kilroy.sendMessage(msg.channel, "I'm already reporting the map rotation! Don't spam requests. D:");
 				reportingMaps = 'spam';
 			} else if (reportingMaps === false) {
-				reportingMaps = 'yes';
 				mapChannel = msg.channel;
 				getMaps();
 			}
