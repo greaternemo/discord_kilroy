@@ -1,0 +1,4 @@
+{
+    "discord_library": "the/directory/path/to/your/local/installation/of/discord.js",
+    "key_user": numeric_userID_of_your_key_user
+}
