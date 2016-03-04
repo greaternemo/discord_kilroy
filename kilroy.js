@@ -93,7 +93,7 @@ Kilroy.on("disconnected", function() {
 // Behavior for recieving messages
 Kilroy.on("message", function(msg) {
 	var x = 0;
-	if (msg.author.id == 81042610457677824) {
+	if (msg.author.id == Conf.key_user) {
 
 		if (msg.content == '!maps') {
 			if (reportingMaps == 'spam') {
